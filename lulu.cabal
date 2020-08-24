@@ -1,0 +1,62 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           lulu
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/jasonliang512/lulu#readme>
+homepage:       https://github.com/jasonliang512/lulu#readme
+bug-reports:    https://github.com/jasonliang512/lulu/issues
+author:         Jason Liang
+maintainer:     jasonliang512.com
+copyright:      2020 Jason Liang
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/jasonliang512/lulu
+
+library
+  exposed-modules:
+      Lib
+      LuluInclude
+  other-modules:
+      Paths_lulu
+  hs-source-dirs:
+      src
+  build-depends:
+      base
+    , raw-strings-qq
+  default-language: Haskell2010
+
+executable lulu-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_lulu
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , lulu
+  default-language: Haskell2010
+
+test-suite lulu-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_lulu
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base
+    , lulu
+  default-language: Haskell2010
