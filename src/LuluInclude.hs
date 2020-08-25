@@ -9,7 +9,6 @@ import           Text.RawString.QQ
 
 includeHeader :: String
 includeHeader = [r|
-const luluglobal = (typeof window !== "undefined" && window) || (typeof module !== "undefined" && module)
 const add = (a, b) => a + b
 const sub = (a, b) => a - b
 const mul = (a, b) => a * b
@@ -29,16 +28,21 @@ const xor = (pred1, pred2) => pred1 ^ pred2
 const isEmpty = (a) => !!a
 
 const ifElse = (pred, a, b) => pred ? a : b
+const ifElse_ = (pred, a = () => {}, b = () => {}) => pred ? a() : b()
 const when = (pred, a) => pred ? a : undefined
+const when_ = (pred, a = () => {}) => pred ? a() : undefined
 
 const list = (...elems) => elems
 const range = (min, max) => Array.from(Array(max - min)).map((_, i) => i)
 const length = (xs) => xs.length
 const concat = (xs, ys) => xs.concat(ys)
+const join = (sep, xs) => xs.join(sep)
 
 const assoc = (k, v, m) => ({ ...m, [k]: v })
 const dissoc = (k, v, m) => ({ ...m, [k]: undefined })
 const path = (k, m) => m[k]
 
-const setv = (v, x) => luluglobal[v] = x
+const map = (fn, xs) => xs.map(fn)
+const filter = (fn, xs) => xs.filter(fn)
+const reduce = (fn, zero, xs) => xs.reduce(fn, zero)
 |]

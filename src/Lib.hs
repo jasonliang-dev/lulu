@@ -104,7 +104,7 @@ lispExprNumber :: Parser LispExpr
 lispExprNumber = LispNumber <$> number
 
 lispExprNil :: Parser LispExpr
-lispExprNil = LispNil <$ (string "nil" <|> string "()")
+lispExprNil = LispNil <$ string "nil"
 
 lispExprT :: Parser LispExpr
 lispExprT = LispT <$ string "t"
@@ -162,21 +162,54 @@ data JSExpr
   | JSIdentifier String
   | JSAssignment String JSExpr
   | JSFunctionDeclaration String [String] [JSExpr]
+  | JSArrowFunction [String] [JSExpr]
   | JSCallExpression JSExpr [JSExpr]
   deriving (Show, Eq)
 
-lispToJSExpr :: LispExpr -> JSExpr
-lispToJSExpr LispNil         = JSNull
-lispToJSExpr LispT           = JSBoolean True
-lispToJSExpr (LispNumber n ) = JSNumber n
-lispToJSExpr (LispName   s ) = JSIdentifier s
-lispToJSExpr (LispString s ) = JSString s
-lispToJSExpr (LispList   []) = JSNull
-lispToJSExpr (LispList (name : args)) =
-  case name of
-    (LispName "let") -> undefined
-    (LispName "defun") -> undefined
-    _ -> JSCallExpression (lispToJSExpr name) (lispToJSExpr <$> args)
+lispToArgList :: [LispExpr] -> Either String [String]
+lispToArgList args = sequence $ nameToString <$> args
+ where
+  nameToString (LispName n) = Right n
+  nameToString _            = Left "Error converting argument list"
+
+lispToJSExpr :: LispExpr -> Either String JSExpr
+lispToJSExpr LispNil                              = Right JSNull
+lispToJSExpr LispT                                = Right $ JSBoolean True
+lispToJSExpr (LispNumber n                      ) = Right $ JSNumber n
+lispToJSExpr (LispName   s                      ) = Right $ JSIdentifier s
+lispToJSExpr (LispString s                      ) = Right $ JSString s
+lispToJSExpr (LispList   []                     ) = Right JSNull
+
+lispToJSExpr (LispList   (LispName "let" : args)) = case args of
+  [LispName n, expr] -> JSAssignment n <$> lispToJSExpr expr
+  [_         , _   ] -> Left "Invalid lvalue"
+  _                  -> Left "`let` requires exactly two arguments"
+
+lispToJSExpr (LispList (LispName "defun" : LispName name : LispList args : exprs))
+  = do
+    argsStr <- lispToArgList args
+    body    <- sequence $ lispToJSExpr <$> exprs
+    return $ JSFunctionDeclaration name argsStr body
+lispToJSExpr (LispList (LispName "defun" : _)) =
+  Left "Function declaration error"
+
+lispToJSExpr (LispList (LispName "lambda" : LispList args : exprs)) = do
+  argsStr <- lispToArgList args
+  body    <- sequence $ lispToJSExpr <$> exprs
+  return $ JSArrowFunction argsStr body
+
+lispToJSExpr (LispList (lvalue : args)) = liftA2
+  JSCallExpression
+  (lispToJSExpr lvalue)
+  (sequence $ lispToJSExpr <$> args)
+
+jsExprsToFnBody :: [JSExpr] -> String
+jsExprsToFnBody []     = ""
+jsExprsToFnBody [expr] = "return " ++ jsToString expr
+jsExprsToFnBody exprs =
+  intercalate "\n"
+    $  (jsToString <$> init exprs)
+    ++ ["return " ++ jsToString (last exprs)]
 
 jsToString :: JSExpr -> String
 jsToString JSNull               = "null"
@@ -184,16 +217,38 @@ jsToString (JSBoolean    True ) = "true"
 jsToString (JSBoolean    False) = "false"
 jsToString (JSNumber     n    ) = show n
 jsToString (JSIdentifier s    ) = s
-jsToString (JSString     s    ) = '"' : s ++ "\""
-jsToString (JSAssignment s expr) = undefined
-jsToString (JSFunctionDeclaration s args exprs) = undefined
+jsToString (JSString     s    ) = '"' : addslashes s ++ "\""
+ where
+  addslashes ('"'  : cs) = "\\\"" ++ addslashes cs
+  addslashes ('\\' : cs) = "\\\\" ++ addslashes cs
+  addslashes ('/'  : cs) = "\\/" ++ addslashes cs
+  addslashes ('\b' : cs) = "\\b" ++ addslashes cs
+  addslashes ('\f' : cs) = "\\f" ++ addslashes cs
+  addslashes ('\n' : cs) = "\\n" ++ addslashes cs
+  addslashes ('\r' : cs) = "\\r" ++ addslashes cs
+  addslashes ('\t' : cs) = "\\t" ++ addslashes cs
+  addslashes (c    : cs) = c : addslashes cs
+  addslashes []          = []
+
+jsToString (JSAssignment s expr) = s ++ "=" ++ jsToString expr
+jsToString (JSFunctionDeclaration name args body) =
+  "function "
+    ++ name
+    ++ "("
+    ++ intercalate "," args
+    ++ ") {\n"
+    ++ jsExprsToFnBody body
+    ++ "\n}"
+jsToString (JSArrowFunction args body) =
+  "(" ++ intercalate "," args ++ ") => {\n" ++ jsExprsToFnBody body ++ "\n}"
 jsToString (JSCallExpression expr args) =
   jsToString expr ++ "(" ++ (intercalate "," $ jsToString <$> args) ++ ")"
 
 compiler :: String -> Either String String
 compiler input = do
-  lisp <- runParser lispParser input
-  return $ intercalate "\n" $ jsToString <$> lispToJSExpr <$> lisp
+  lispProgram <- runParser lispParser input
+  jsProgram   <- sequence $ lispToJSExpr <$> lispProgram
+  return $ intercalate "\n" $ jsToString <$> jsProgram
 
 runCompiler :: String -> String -> IO ()
 runCompiler fin fout = do
