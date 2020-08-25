@@ -25,24 +25,21 @@ const gte = (a, b) => a >= b
 const and = (pred1, pred2) => pred1 && pred2
 const or = (pred1, pred2) => pred1 || pred2
 const xor = (pred1, pred2) => pred1 ^ pred2
-const isEmpty = (a) => !!a
-
-const ifElse = (pred, a, b) => pred ? a : b
-const ifElse_ = (pred, a = () => {}, b = () => {}) => pred ? a() : b()
-const when = (pred, a) => pred ? a : undefined
-const when_ = (pred, a = () => {}) => pred ? a() : undefined
 
 const list = (...elems) => elems
 const range = (min, max) => Array.from(Array(max - min)).map((_, i) => i)
 const length = (xs) => xs.length
-const concat = (xs, ys) => xs.concat(ys)
+const concat = (xs, ...rest) => xs.concat(...rest)
 const join = (sep, xs) => xs.join(sep)
 
+const fromList = (arr) => arr.reduce((o, [k, v]) => ({ ...o, [k]: v }), {})
+const dict = (...arr) => fromList(arr)
 const assoc = (k, v, m) => ({ ...m, [k]: v })
 const dissoc = (k, v, m) => ({ ...m, [k]: undefined })
-const path = (k, m) => m[k]
 
 const map = (fn, xs) => xs.map(fn)
 const filter = (fn, xs) => xs.filter(fn)
 const reduce = (fn, zero, xs) => xs.reduce(fn, zero)
+
+const always = (a) => () => a
 |]
