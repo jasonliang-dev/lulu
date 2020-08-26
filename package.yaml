@@ -1,7 +1,7 @@
 name: lulu
 version: 0.1.0.0
 github: "jasonliang512/lulu"
-license: BSD3
+license: MIT
 author: "Jason Liang"
 maintainer: "jasonliang512.com"
 copyright: "2020 Jason Liang"
