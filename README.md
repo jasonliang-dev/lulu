@@ -160,10 +160,10 @@ Functions are defined in `src/LuluInclude.hs`.
 ## BNF Grammar
 
 ```
-         <program> ::= <opt-whitespace> | <sexpr> <opt-whitespace> <program>
+         <program> ::= <opt-whitespace> | <opt-whitespace> <sexpr> <program>
            <sexpr> ::= <atom> | "(" <whitespace> <args> <whitespace> ")"
             <args> ::= <sexpr> | <sexpr> <whitespace> <sexpr>
-            <atom> ::= "nil" | "t" | <number> | <name> | <string>
+            <atom> ::= <number> | <name> | <string>
  
           <number> ::= <digit> | <digit> <number> | <number> "." <number>
             <name> ::= <alpha> | "_" | <name> <alphanumeric> | <name> "_" | <name> "." <name>
