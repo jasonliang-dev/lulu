@@ -156,3 +156,26 @@ Functions are defined in `src/LuluInclude.hs`.
 | map      | Transforms each element in an array with a given callback function |
 | filter   | Creates an array with elements that pass a predicate               |
 | reduce   | Execute a reducer function for each element in an array            |
+
+## BNF Grammar
+
+```
+         <program> ::= <opt-whitespace> | <sexpr> <opt-whitespace> <program>
+           <sexpr> ::= <atom> | "(" <whitespace> <args> <whitespace> ")"
+            <args> ::= <sexpr> | <sexpr> <whitespace> <sexpr>
+            <atom> ::= "nil" | "t" | <number> | <name> | <string>
+ 
+          <number> ::= <digit> | <digit> <number> | <number> "." <number>
+            <name> ::= <alpha> | "_" | <name> <alphanumeric> | <name> "_" | <name> "." <name>
+          <string> ::= '"' <text> '"'
+            <text> ::= "" | <normal-char> <text> | <escape-char> <text>
+     <escape-char> ::= "\"" | '\\' | '\b' | '\f' | '\n' | '\r' | '\t'
+     <normal-char> ::= any character that isn't '"' or '\\'
+
+  <opt-whitespace> ::= "" | <whitespace>
+      <whitespace> ::= <whitespace-chars> | <whitespace-chars> <whitespace>
+<whitespace-chars> ::= " " | "\n" | "\r"
+    <alphanumeric> ::= <alpha> | <digit>
+           <alpha> ::= "a" | "b" | ... | "z" | "A" | "B" | ... | "Z"
+           <digit> ::= "0" | "1" | ... | "9"
+```

@@ -113,7 +113,7 @@ lispExprName :: Parser LispExpr
 lispExprName = LispName <$> name
  where
   name = do
-    c   <- alpha
+    c   <- alpha <|> char '_'
     cs  <- many $ alphanumeric <|> char '_'
     dot <- liftA2 (:) (char '.') (name) <|> return []
     return $ (c : cs) ++ dot
