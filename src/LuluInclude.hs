@@ -27,6 +27,7 @@ const or = (pred1, pred2) => pred1 || pred2
 const xor = (pred1, pred2) => pred1 ^ pred2
 
 const list = (...elems) => elems
+const nth = (i, xs) => xs[i]
 const range = (min, max) => Array.from(Array(max - min)).map((_, i) => i)
 const length = (xs) => xs.length
 const concat = (xs, ...rest) => xs.concat(...rest)
@@ -36,6 +37,7 @@ const fromList = (arr) => arr.reduce((o, [k, v]) => ({ ...o, [k]: v }), {})
 const dict = (...arr) => fromList(arr)
 const assoc = (k, v, m) => ({ ...m, [k]: v })
 const dissoc = (k, v, m) => ({ ...m, [k]: undefined })
+const prop = nth
 
 const map = (fn, xs) => xs.map(fn)
 const filter = (fn, xs) => xs.filter(fn)
