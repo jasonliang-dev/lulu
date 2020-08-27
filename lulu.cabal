@@ -12,7 +12,7 @@ bug-reports:    https://github.com/jasonliang512/lulu/issues
 author:         Jason Liang
 maintainer:     jasonliang512.com
 copyright:      2020 Jason Liang
-license:        BSD3
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:

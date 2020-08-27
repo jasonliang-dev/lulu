@@ -168,8 +168,7 @@ Functions are defined in `src/LuluInclude.hs`.
           <number> ::= <digit> | <digit> <number> | <number> "." <number>
             <name> ::= <alpha> | "_" | <name> <alphanumeric> | <name> "_" | <name> "." <name>
           <string> ::= '"' <text> '"'
-            <text> ::= "" | <normal-char> <text> | <escape-char> <text>
-     <escape-char> ::= "\"" | '\\' | '\b' | '\f' | '\n' | '\r' | '\t'
+            <text> ::= "" | <normal-char> <text> | "\"" <text>
      <normal-char> ::= any character that isn't '"' or '\\'
 
   <opt-whitespace> ::= "" | <whitespace>
