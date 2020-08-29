@@ -5,9 +5,10 @@ module LuluInclude
   )
 where
 
+import           Relude
 import           Text.RawString.QQ
 
-includeHeader :: String
+includeHeader :: Text
 includeHeader = [r|
 const add = (a, b) => a + b
 const sub = (a, b) => a - b
@@ -28,10 +29,11 @@ const xor = (pred1, pred2) => pred1 ^ pred2
 
 const list = (...elems) => elems
 const nth = (i, xs) => xs[i]
-const range = (min, max) => Array.from(Array(max - min)).map((_, i) => i)
+const range = (min, max) => Array.from(Array(max - min)).map((_, i) => i + min)
 const length = (xs) => xs.length
 const concat = (xs, ...rest) => xs.concat(...rest)
 const join = (sep, xs) => xs.join(sep)
+const split = (sep, xs) => xs.split(sep)
 
 const fromList = (arr) => arr.reduce((o, [k, v]) => ({ ...o, [k]: v }), {})
 const dict = (...arr) => fromList(arr)

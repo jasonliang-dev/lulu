@@ -15,13 +15,20 @@ extra-source-files:
 # common to point users to the README.md file.
 description: Please see the README on GitHub at <https://github.com/jasonliang512/lulu#readme>
 
+default-extensions:
+  - NoImplicitPrelude
+  - OverloadedStrings
+  - QuasiQuotes
+
 dependencies:
   - base
+  - relude
 
 library:
   source-dirs: src
   dependencies:
     - raw-strings-qq
+    - text
 
 executables:
   lulu-exe:

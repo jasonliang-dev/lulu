@@ -31,9 +31,12 @@ library
       Paths_lulu
   hs-source-dirs:
       src
+  default-extensions: NoImplicitPrelude OverloadedStrings QuasiQuotes
   build-depends:
       base
     , raw-strings-qq
+    , relude
+    , text
   default-language: Haskell2010
 
 executable lulu-exe
@@ -42,10 +45,12 @@ executable lulu-exe
       Paths_lulu
   hs-source-dirs:
       app
+  default-extensions: NoImplicitPrelude OverloadedStrings QuasiQuotes
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
     , lulu
+    , relude
   default-language: Haskell2010
 
 test-suite lulu-test
@@ -55,8 +60,10 @@ test-suite lulu-test
       Paths_lulu
   hs-source-dirs:
       test
+  default-extensions: NoImplicitPrelude OverloadedStrings QuasiQuotes
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
     , lulu
+    , relude
   default-language: Haskell2010

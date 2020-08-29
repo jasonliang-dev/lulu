@@ -3,20 +3,18 @@ module Lib
   )
 where
 
-import           Control.Applicative
-import           Control.Monad
+import           Relude
 import           Data.Char
-import           Data.List
+import qualified Data.Text                     as T
 import           System.Environment
-import           System.Exit
 import qualified LuluInclude
 
-newtype Parser a = Parser { parse :: String -> [(a, String)] }
+newtype Parser a = Parser { parse :: Text -> [(a, Text)] }
 
-runParser :: Parser a -> String -> Either String a
+runParser :: Parser a -> Text -> Either Text a
 runParser m s = case parse m s of
-  [(res, [])] -> Right res
-  [(_  , cs)] -> Left $ "Parser did not consume entire stream: " ++ cs
+  [(res, "")] -> Right res
+  [(_  , cs)] -> Left $ "Parser did not consume entire stream: " <> cs
   _           -> Left "Parse error"
 
 instance Functor Parser where
@@ -42,25 +40,26 @@ instance Alternative Parser where
     res -> res
 
 item :: Parser Char
-item = Parser $ \s -> case s of
-  []       -> []
-  (c : cs) -> [(c, cs)]
+item = Parser $ \s -> case T.uncons s of
+  Just (c, cs) -> [(c, cs)]
+  Nothing      -> []
 
 satisfy :: (Char -> Bool) -> Parser Char
 satisfy p = item >>= \c -> if p c then return c else mzero
 
-oneOf :: [Char] -> Parser Char
-oneOf s = satisfy (flip elem s)
+oneOf :: Text -> Parser Char
+oneOf s = satisfy (flip elem $ toString s)
 
 char :: Char -> Parser Char
 char c = satisfy (c ==)
 
-string :: String -> Parser String
-string []       = return []
-string (c : cs) = do
-  _ <- char c
-  _ <- string cs
-  return (c : cs)
+string :: Text -> Parser Text
+string s = case T.uncons s of
+  Just (c, cs) -> do
+    _ <- char c
+    _ <- string cs
+    return $ T.cons c cs
+  Nothing -> return ""
 
 token :: Parser a -> Parser a
 token p = do
@@ -68,11 +67,11 @@ token p = do
   _ <- spaces
   return a
 
-reserved :: String -> Parser String
+reserved :: Text -> Parser Text
 reserved = token . string
 
-spaces :: Parser String
-spaces = many $ oneOf " \n\r"
+spaces :: Parser Text
+spaces = toText <$> many (oneOf " \n\r")
 
 digit :: Parser Char
 digit = satisfy isDigit
@@ -85,18 +84,18 @@ alphanumeric = alpha <|> digit
 
 number :: Parser Double
 number = do
-  sgn <- string "-" <|> return []
-  lhs <- some digit
-  dot <- string "." <|> return []
-  rhs <- some digit <|> return []
-  return $ read $ sgn ++ lhs ++ dot ++ rhs
+  sgn <- string "-" <|> return ""
+  lhs <- toText <$> some digit
+  dot <- string "." <|> return ""
+  rhs <- toText <$> some digit <|> return ""
+  either (const mzero) return $ readEither $ sgn <> lhs <> dot <> rhs
 
 data LispExpr
   = LispNil
   | LispT
   | LispNumber Double
-  | LispName String
-  | LispString String
+  | LispName Text
+  | LispText Text
   | LispList [LispExpr]
   deriving (Show, Eq)
 
@@ -114,14 +113,14 @@ lispExprName = LispName <$> name
  where
   name = do
     c   <- alpha <|> char '_'
-    cs  <- many $ alphanumeric <|> char '_'
-    dot <- liftA2 (:) (char '.') (name) <|> return []
-    return $ (c : cs) ++ dot
+    cs  <- toText <$> (many $ alphanumeric <|> char '_')
+    dot <- liftA2 (T.cons) (char '.') (name) <|> return ""
+    return $ (T.cons c cs) <> dot
 
-lispExprString :: Parser LispExpr
-lispExprString =
-  LispString <$> (char '"' *> many (normalChar <|> escapeChar) <* char '"')
+lispExprText :: Parser LispExpr
+lispExprText = LispText <$> (char '"' *> inner <* char '"')
  where
+  inner      = toText <$> many (normalChar <|> escapeChar)
   normalChar = satisfy $ liftA2 (&&) ('"' /=) ('\\' /=)
   escapeChar =
     ('"' <$ string "\\\"")
@@ -142,7 +141,7 @@ lispExprList = do
 
 lispExpr :: Parser LispExpr
 lispExpr =
-  lispExprString
+  lispExprText
     <|> lispExprList
     <|> lispExprName
     <|> lispExprNumber
@@ -155,39 +154,39 @@ lispParser :: Parser LispProgram
 lispParser = many (token lispExpr) <|> return []
 
 data JSExpr
-  = JSString String
+  = JSText Text
   | JSNumber Double
   | JSBoolean Bool
   | JSNull
   | JSUndefined
-  | JSIdentifier String
-  | JSAssignment String JSExpr
-  | JSFunctionDeclaration String [String] [JSExpr]
-  | JSArrowFunction [String] [JSExpr]
+  | JSIdentifier Text
+  | JSAssignment Text JSExpr
+  | JSFunctionDeclaration Text [Text] [JSExpr]
+  | JSArrowFunction [Text] [JSExpr]
   | JSCallExpression JSExpr [JSExpr]
-  | JSNewExpression String [JSExpr]
+  | JSNewExpression Text [JSExpr]
   | JSTernary JSExpr JSExpr JSExpr
   deriving (Show, Eq)
 
-lispToArgList :: [LispExpr] -> Either String [String]
-lispToArgList args = sequence $ nameToString <$> args
+lispToArgList :: [LispExpr] -> Either Text [Text]
+lispToArgList args = sequence $ nameToText <$> args
  where
-  nameToString (LispName n) = Right n
-  nameToString _            = Left "Error converting argument list"
+  nameToText (LispName n) = Right n
+  nameToText _            = Left "Error converting argument list"
 
-lispToJSExpr :: LispExpr -> Either String JSExpr
+lispToJSExpr :: LispExpr -> Either Text JSExpr
 lispToJSExpr expr = case expr of
   LispNil       -> Right JSNull
   LispT         -> Right $ JSBoolean True
   LispNumber n  -> Right $ JSNumber n
   LispName   s  -> Right $ JSIdentifier s
-  LispString s  -> Right $ JSString s
+  LispText   s  -> Right $ JSText s
   LispList   [] -> Right $ JSNull
   LispList [LispName "let", LispName n, rest] ->
     liftA2 JSAssignment (return n) (lispToJSExpr rest)
   LispList [LispName "let", _, _] -> Left "Invalid lvalue in `let`"
   LispList (LispName "let" : rest) ->
-    Left $ "`let` requires exactly two arguments. Recieved: " ++ show rest
+    Left $ "`let` requires exactly two arguments. Recieved: " <> show rest
   LispList [LispName "if", cond, t, f] ->
     liftA3 JSTernary (lispToJSExpr cond) (lispToJSExpr t) (lispToJSExpr f)
   LispList [LispName "if", cond, t] ->
@@ -210,70 +209,71 @@ lispToJSExpr expr = case expr of
                                      (lispToJSExpr lvalue)
                                      (sequence $ lispToJSExpr <$> args)
 
-jsExprsToFnBody :: [JSExpr] -> String
+jsExprsToFnBody :: [JSExpr] -> Text
 jsExprsToFnBody []     = ""
-jsExprsToFnBody [expr] = "return " ++ jsToString expr
+jsExprsToFnBody [expr] = "return " <> jsToText expr
 jsExprsToFnBody exprs =
-  intercalate "\n"
-    $  (jsToString <$> init exprs)
-    ++ ["return " ++ jsToString (last exprs)]
+  T.intercalate "\n"
+    $  ((fmap jsToText) <$> viaNonEmpty init exprs ?: [""])
+    <> ["return " <> ((jsToText <$> viaNonEmpty last exprs) ?: "")]
 
-addslashes :: String -> String
-addslashes []       = []
-addslashes (c : cs) = case c of
-  '"'  -> "\\\"" ++ addslashes cs
-  '\\' -> "\\\\" ++ addslashes cs
-  '/'  -> "\\/" ++ addslashes cs
-  '\b' -> "\\b" ++ addslashes cs
-  '\f' -> "\\f" ++ addslashes cs
-  '\n' -> "\\n" ++ addslashes cs
-  '\r' -> "\\r" ++ addslashes cs
-  '\t' -> "\\t" ++ addslashes cs
-  _    -> c : addslashes cs
+addslashes :: Text -> Text
+addslashes str = case T.uncons str of
+  Nothing      -> ""
+  Just (c, cs) -> case c of
+    '"'  -> "\\\"" <> addslashes cs
+    '\\' -> "\\\\" <> addslashes cs
+    '/'  -> "\\/" <> addslashes cs
+    '\b' -> "\\b" <> addslashes cs
+    '\f' -> "\\f" <> addslashes cs
+    '\n' -> "\\n" <> addslashes cs
+    '\r' -> "\\r" <> addslashes cs
+    '\t' -> "\\t" <> addslashes cs
+    _    -> T.cons c $ addslashes cs
 
-jsToString :: JSExpr -> String
-jsToString expr = case expr of
+jsToText :: JSExpr -> Text
+jsToText expr = case expr of
   JSNull              -> "null"
   JSUndefined         -> "undefined"
   JSBoolean    True   -> "true"
   JSBoolean    False  -> "false"
   JSNumber     n      -> show n
   JSIdentifier s      -> s
-  JSString     s      -> '"' : addslashes s ++ "\""
-  JSAssignment s rest -> s ++ " = " ++ jsToString rest
+  JSText       s      -> "\"" <> addslashes s <> "\""
+  JSAssignment s rest -> s <> " = " <> jsToText rest
   JSTernary cond t f ->
-    jsToString cond ++ " ? " ++ jsToString t ++ " : " ++ jsToString f
+    jsToText cond <> " ? " <> jsToText t <> " : " <> jsToText f
   JSArrowFunction args body ->
-    "(" ++ intercalate "," args ++ ") => {\n" ++ jsExprsToFnBody body ++ "\n}"
+    "(" <> T.intercalate "," args <> ") => {\n" <> jsExprsToFnBody body <> "\n}"
   JSCallExpression lhs args ->
-    jsToString lhs ++ "(" ++ (intercalate "," $ jsToString <$> args) ++ ")"
+    jsToText lhs <> "(" <> (T.intercalate "," $ jsToText <$> args) <> ")"
   JSNewExpression construct args ->
-    "new " ++ construct ++ "(" ++ (intercalate "," $ jsToString <$> args) ++ ")"
+    "new " <> construct <> "(" <> (T.intercalate "," $ jsToText <$> args) <> ")"
   JSFunctionDeclaration name args body ->
     "function "
-      ++ name
-      ++ "("
-      ++ intercalate "," args
-      ++ ") {\n"
-      ++ jsExprsToFnBody body
-      ++ "\n}"
+      <> name
+      <> "("
+      <> T.intercalate "," args
+      <> ") {\n"
+      <> jsExprsToFnBody body
+      <> "\n}"
 
-compiler :: String -> Either String String
+compiler :: Text -> Either Text Text
 compiler input = do
   lispProgram <- runParser lispParser input
   jsProgram   <- sequence $ lispToJSExpr <$> lispProgram
-  return $ intercalate "\n" $ jsToString <$> jsProgram
+  return $ T.intercalate "\n" $ jsToText <$> jsProgram
 
-runCompiler :: String -> String -> IO ()
+runCompiler :: FilePath -> FilePath -> IO ()
 runCompiler fin fout = do
-  contents <- compiler <$> readFile fin
+  contents <- compiler <$> readFileText fin
   either (printAndFail)
-         (writeFile fout)
-         ((LuluInclude.includeHeader ++) <$> contents)
+         (writeFileText fout)
+         ((LuluInclude.includeHeader <>) <$> contents)
  where
   printAndFail str = do
-    putStrLn str
-    exitWith (ExitFailure 1)
+    putTextLn str
+    exitFailure
 
 main :: IO ()
 main = do
